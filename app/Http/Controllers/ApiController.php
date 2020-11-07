@@ -30,7 +30,9 @@ class ApiController extends Controller{
         return $data;
     }
 
-    public function registeration(Request $request){
+   public function registeration(Request $request){
+        $users= User::where('email',$request->email)->first();
+
         $securitypin = rand(1111, 9999);
         $user= New User();
         $user->name=$request->name;
@@ -39,22 +41,34 @@ class ApiController extends Controller{
         $user->phone=$request->phone;
         $user->password=bcrypt($request->password);
         $user->securitypin=$securitypin;
-        if ($user->save()){
+        if(!empty($request->type)){
+            $user->remember_token=$request->token;
+        }
+        
+        if ($users == null){
+            
+            $user->save();
+        }
+
+        if(empty($request->type)){
             Mail::send('emails.verifiaction',['target'=>$user], function ($message)use($user) {
                 $message->from(env('MAIL_FROM_ADDRESS'), 'Assignment');
                 $message->to($user->email);
                 $message->subject('Email Verification');
             });
-            $data['users']=$user;
-            $data['message']='success';
-        }else{
-            $data['message']='error';
         }
-		return $data;
-    }
 
+        $data['users']=$users == null? $user : $users;
+        $data['message']='success';
+
+        return $data;
+    }
+    
+    
+    
     public function email_verify_code(Request $request){
-        $user= User::where('securitypin',$request->securitypin)->where('remember_token',$request->token)->first();
+        $user= User::where('securitypin',$request->securitypin)->first();
+       
         if ($user->securitypin == $request->securitypin){
             $user->status=1;
             $user->save();
